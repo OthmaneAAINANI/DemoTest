@@ -1,0 +1,915 @@
+Rem --- eWON start section: Cyclic Section
+eWON_cyclic_section:
+Rem --- eWON user (start)
+Rem --- eWON user (end)
+End
+Rem --- eWON end section: Cyclic Section
+Rem --- eWON start section: Init Section
+eWON_init_section:
+Rem --- eWON user (start)
+ONDATE 1,"*/5 * * * *","GOTO MyFTP"
+REM Declanchement ventillation
+ONCHANGE "Temperature_Poste", "IF Temperature_Poste@>Consigne_Temperature@ THEN EXTRACTEUR@=1 ELSE EXTRACTEUR@=0"
+
+REM gestion eclairage
+ONCHANGE "Mouvement", "IF Mouvement@=0 THEN ECLAIRAGE@=1 ELSE ECLAIRAGE@=0"
+ONCHANGE "PorteOuverte", "IF PorteOuverte@=0 THEN ECLAIRAGE@=1 ELSE ECLAIRAGE@=0"
+
+REM Calcul cyclique taux de charge toute les 5 secondes
+TSET 1,5
+ONTIMER 1, "GOSUB CALCUL_Taux_De_Charge"
+
+REM Consigne de temperature du transfo - Declenche la ventillation 
+ONCHANGE "Consigne_Temperature", "GOSUB CHANGE_ALARM"
+REM Consogne Imax pour les phases des voies 1 a 8
+ONCHANGE "Consigne_I_Max", "GOSUB CHANGE_I_Max"
+REM Consogne Imax pour In des voies 1 a 9
+ONCHANGE "Consigne_In_Max", "GOSUB CHANGE_In_Max"
+REM seuil courant desequilibre
+ONCHANGE "Consigne_Seuil_Courant_Min", "GOSUB CHANGE_Seuil_Courant_Min"
+REM Seuil 1 et 2 temperature poste
+ONCHANGE "Consigne_Seuil1_Temp_Poste", "GOSUB CHANGE_Seuil1_Temp_Poste"
+ONCHANGE "Consigne_Seuil2_Temp_Poste", "GOSUB CHANGE_Seuil2_Temp_Poste"
+REM Seuil 1 et 2 humidite poste
+ONCHANGE "Consigne_Seuil1_Hum_Poste", "GOSUB CHANGE_Seuil1_Hum_Poste"
+ONCHANGE "Consigne_Seuil2_Hum_Poste", "GOSUB CHANGE_Seuil2_Hum_Poste"
+REM Seuil 1 et 2 Temperature Cellule 1 a 3
+ONCHANGE "Consigne_Seuil1_PointChaud", "GOSUB CHANGE_Seuil1_Temp_Cell"
+ONCHANGE "Consigne_Seuil2_PointChaud", "GOSUB CHANGE_Seuil2_Temp_Cell"
+
+Rem Seuil consigne I_Max et I Max 120%
+ONCHANGE "Consigne_I_Max", "GOSUB CHANGE_Consigne_I_Max"
+Rem seuil consigne I min
+ONCHANGE "Consigne_I_Min", "GOSUB CHANGE_Consigne_I_Min"
+Rem Seuil 1 et 2 consigne Humidite Cellule TBT, tableau BT1 et 2
+ONCHANGE "Consigne_Seuil1_Hum_Cell_TBT", "GOSUB CHANGE_Consigne_Seuil1_Hum_Cell_TBT"
+ONCHANGE "Consigne_Seuil2_Hum_Cell_TBT", "GOSUB CHANGE_Consigne_Seuil2_Hum_Cell_TBT"
+
+REM ONDATE 1,"0 * * * *","GOTO MyFTP"
+END
+
+REM MyFTP:
+REM     T$=Time$
+REM     A$="/test/Export_Index_Data_"+T$(7 To 10)+T$(4 To 5)+T$(1 To 2)+"_"+T$(12 To 13)+T$(15 To 16)+T$(18 To 19)+".csv"
+REM     PUTFTP A$,"[$dtHT $ftT $stL$et_0$ut $flC]" 
+REM END
+
+MyFTP:
+    T$=Time$
+    A$="\R21_TR1\Data_"+T$(1 To 2)+T$(4 To 5)+T$(7 To 10)+"_"+T$(12 To 13)+"h"+T$(15 To 16)+".csv"
+    PUTFTP A$,"[$dtHT $ftT $st_m10$et_0]" 
+END
+
+CALCUL_Taux_De_Charge:
+  Taux_De_Charge@ = TOT_VA_9@/Ptfo@
+RETURN
+
+CHANGE_ALARM:
+   SETSYS TAG, "LOAD", "Temperature"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Temperature@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_Seuil1_Hum_Poste:
+   SETSYS TAG, "LOAD", "Humidite_Poste"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Poste@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_Seuil2_Hum_Poste:
+   SETSYS TAG, "LOAD", "Humidite_Poste"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Poste@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_Seuil1_Temp_Poste:
+   SETSYS TAG, "LOAD", "Temperature_Poste"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Temp_Poste@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_Seuil2_Temp_Poste:
+   SETSYS TAG, "LOAD", "Temperature_Poste"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Temp_Poste@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_I_Max:
+   SETSYS TAG, "LOAD", "I1_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I1_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I2_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "I3_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_Seuil_Courant_Min:
+ SETSYS TAG, "LOAD", "1-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "1-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "1-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"  
+ SETSYS TAG, "LOAD", "2-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "2-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "2-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE" 
+ SETSYS TAG, "LOAD", "3-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "3-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "3-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE" 
+ SETSYS TAG, "LOAD", "4-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "4-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "4-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "5-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "5-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "5-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "6-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "6-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "6-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "7-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "7-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "7-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "8-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "8-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "8-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "9-1-I1-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "9-2-I2-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+ SETSYS TAG, "LOAD", "9-3-I3-UNB"
+   SETSYS TAG, "AlLow", STR$ Consigne_Seuil_Courant_Min@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_In_Max:
+   SETSYS TAG, "LOAD", "In_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   SETSYS TAG, "LOAD", "In_9"
+   SETSYS TAG, "AlHigh", STR$ Consigne_In_Max@
+   SETSYS TAG , "SAVE"
+   CFGSAVE
+RETURN
+CHANGE_Seuil1_Temp_Cell:
+SETSYS TAG, "LOAD", "TempPrimTfoPh1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfoPh2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfoPh3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoPh1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoPh2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoPh3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoN"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfo2Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfo2Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfo2Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2N"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell1Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell1Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell1Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell2Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell2Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell2Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell3Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell3Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell3Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell4Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell4Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell4Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell5Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell5Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell5Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell6Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell6Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell6Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell7Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell7Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell7Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell8Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell8Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell8Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell9Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell9Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell9Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell10Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell10Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell10Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell11Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell11Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell11Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell12Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell12Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell12Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell13Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell13Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell13Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell14Ph1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell14Ph2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell14Ph3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_PointChaud@
+   SETSYS TAG , "SAVE"
+
+   CFGSAVE
+RETURN
+
+CHANGE_Seuil2_Temp_Cell:
+SETSYS TAG, "LOAD", "TempCell1Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell1Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell1Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell2Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell2Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell2Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell3Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell3Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell3Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell4Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell4Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell4Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell5Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell5Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell5Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell6Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell6Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell6Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell7Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell7Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell7Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell8Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell8Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell8Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell9Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell9Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell9Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell10Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell10Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell10Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell11Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell11Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell11Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell12Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell12Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell12Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell13Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell13Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell13Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell14Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell14Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempCell14Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfoPh1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfoPh2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfoPh3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoPh1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoPh2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoPh3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfoN"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfo2Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfo2Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempPrimTfo2Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2Ph1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2Ph2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2Ph3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "TempSecTfo2N"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_PointChaud@
+   SETSYS TAG , "SAVE"
+CFGSAVE
+RETURN
+
+CHANGE_Consigne_I_Max:
+Consigne_I_Max_120@ = Consigne_I_Max@ * 1.2
+SETSYS TAG, "LOAD", "I1_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_7"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_8"
+   SETSYS TAG, "AlHigh", STR$ Consigne_I_Max@
+   SETSYS TAG , "SAVE"
+Rem modification de Imax 120%
+SETSYS TAG, "LOAD", "I1_1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_4"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_5"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_6"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_7"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_8"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_4"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_5"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_6"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_7"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_8"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_4"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_5"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_6"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_7"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_8"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_I_Max_120@
+   SETSYS TAG , "SAVE"
+CFGSAVE
+RETURN
+CHANGE_Consigne_I_Min:
+SETSYS TAG, "LOAD", "I1_1"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_2"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_3"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_4"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_5"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_6"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_7"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I1_8"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_1"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_2"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_3"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_4"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_5"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_6"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_7"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I2_8"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_1"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_2"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_3"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_4"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_5"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_6"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_7"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "I3_8"
+   SETSYS TAG, "AlLow", STR$ Consigne_I_Min@
+   SETSYS TAG , "SAVE"
+CFGSAVE
+RETURN   
+
+CHANGE_Consigne_Seuil1_Hum_Cell_TBT:
+SETSYS TAG, "LOAD", "HmdCell1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell3"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell4"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell5"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell6"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdTBT1"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdTBT2"
+   SETSYS TAG, "AlHigh", STR$ Consigne_Seuil1_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+CFGSAVE
+RETURN   
+
+CHANGE_Consigne_Seuil2_Hum_Cell_TBT:
+SETSYS TAG, "LOAD", "HmdCell1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell3"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell4"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell5"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdCell6"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdTBT1"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+SETSYS TAG, "LOAD", "HmdTBT2"
+   SETSYS TAG, "AlHiHi", STR$ Consigne_Seuil2_Hum_Cell_TBT@
+   SETSYS TAG , "SAVE"
+CFGSAVE
+RETURN   
+
+END
+Rem --- eWON user (end)
+End
+Rem --- eWON end section: Init Section
