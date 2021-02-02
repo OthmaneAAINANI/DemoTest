@@ -348,7 +348,7 @@ I3_11-Max,Tsfo1_LVSwbd1_Feeder11_I3_Max
 9-TOT_MAX_DEMAND-W,Tsfo1_LV_P_Max
 ECLAIRAGE,Lighting
 Temp-Max,Box_Temp_Max
-Reset_Fum‚e,Reset_Smokes
+Reset_FumÂ‚e,Reset_Smokes
 TempPrimTfoPh2,Tsfo1_HV_Temp2
 TempPrimTfoPh3,Tsfo1_HV_Temp3
 TempSecTfoPh1,Tsfo1_LV_Temp1
@@ -437,3 +437,4 @@ Consigne_Seuil1_Hum_Cell_TBT,LVSwbd_Hmd_SetPoint1
 Consigne_Seuil2_Hum_Cell_TBT,LVSwbd_Hmd_SetPoint2
 Taux_De_Charge,Tsfo1_LR
 Entree_Absence_Tension,Entree_Absence_Tension
+
